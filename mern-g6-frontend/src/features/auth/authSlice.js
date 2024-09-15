@@ -4,32 +4,45 @@ import { http } from "../api";
 const initialState = {
   user: {},
   token: "",
+  loading: false,
+  error: null,  // To store any error message
 };
 
-export const login = createAsyncThunk("auth/login", async (data) => {
-  try {
-    let url = "auth/login";
-    const res = await http.post(url, data);
-    return res.data;
-  } catch (err) {
-    console.log(err);
-    return err;
+// Login async thunk
+export const login = createAsyncThunk(
+  "auth/login",
+  async (data, { rejectWithValue }) => {
+    try {
+      const res = await http.post("/api/auth/login", data);
+      return res.data;  // Only return serializable data
+    } catch (err) {
+      if (err.response && err.response.data) {
+        // Reject the error message received from the API
+        return rejectWithValue(err.response.data.message);
+      }
+      return rejectWithValue(err.message);
+    }
   }
-});
+);
 
-export const register = createAsyncThunk("/api/auth/register", async (data) => {
-  try {
-    let url = "/api/auth/register";
-    const res = await http.post(url, data);
-    return res.data;
-  } catch (err) {
-    console.log(err);
-    return err;
+// Register async thunk
+export const register = createAsyncThunk(
+  "auth/register",
+  async (data, { rejectWithValue }) => {
+    try {
+      const res = await http.post("/api/auth/register", data);
+      return res.data;  // Only return serializable data
+    } catch (err) {
+      if (err.response && err.response.data) {
+        return rejectWithValue(err.response.data.message);
+      }
+      return rejectWithValue(err.message);
+    }
   }
-});
+);
 
 export const authSlice = createSlice({
-  name: "Auth",
+  name: "auth",
   initialState,
   reducers: {
     setUser: (state, action) => {
@@ -39,6 +52,37 @@ export const authSlice = createSlice({
       state.user = {};
       state.token = "";
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      // Handle login
+      .addCase(login.pending, (state) => {
+        state.loading = true;
+        state.error = null;  // Reset errors
+      })
+      .addCase(login.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.user;  // Assuming the API response has user data
+        state.token = action.payload.token;  // Assuming the API response returns a token
+      })
+      .addCase(login.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Login failed";
+      })
+      // Handle register
+      .addCase(register.pending, (state) => {
+        state.loading = true;
+        state.error = null;  // Reset errors
+      })
+      .addCase(register.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+      })
+      .addCase(register.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Registration failed";
+      });
   },
 });
 
